@@ -5,7 +5,7 @@ import { useAuth } from '../../lib/auth';
 import { post, patch, get } from '../../lib/api';
 import { inr, ROLE_LABEL, date } from '../../lib/format';
 import KycDocs from '../../components/KycDocs';
-import { Button, Card, ErrorBox, Field, Input, Loading, Modal, PageHeader, Pagination, Select, StatusBadge, Table, Textarea, useToast } from '../../components/ui';
+import { Avatar, Button, Card, ErrorBox, Field, Input, Loading, Modal, PageHeader, Pagination, Select, StatusBadge, Table, Textarea, useToast } from '../../components/ui';
 
 const TITLES = { sf: 'Super Franchisees', agent: 'Agents', customer: 'Customers' };
 
@@ -28,7 +28,18 @@ export default function Users() {
   const canCreate = visible.includes(role);
 
   const cols = [
-    { label: 'Name', render: (u) => <span className="font-medium">{u.name}<span className="block text-xs text-slate-500">{u.code}</span></span> },
+    {
+      label: 'Name',
+      render: (u) => (
+        <span className="flex items-center gap-3">
+          <Avatar name={u.name} size="sm" />
+          <span>
+            <span className="block font-medium text-slate-900">{u.name}</span>
+            <span className="block text-xs text-slate-500">{u.code}{u.area ? ` · ${u.area}` : ''}</span>
+          </span>
+        </span>
+      ),
+    },
     { label: 'Phone', key: 'phone' },
     role !== 'sf' && me.role === 'admin' && { label: 'Super Franchisee', render: (u) => u.sf?.name || '—' },
     role === 'customer' && me.role !== 'agent' && { label: 'Agent', render: (u) => u.agent?.name || '—' },

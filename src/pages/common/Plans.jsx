@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth';
 import { inr } from '../../lib/format';
-import { Badge, Button, Card, ErrorBox, Input, Loading, PageHeader, Pagination, Progress, Select, StatusBadge, Table } from '../../components/ui';
+import { Avatar, Badge, Button, Card, ErrorBox, Input, Loading, PageHeader, Pagination, Progress, Select, StatusBadge, Table } from '../../components/ui';
 
 export default function Plans() {
   const { user } = useAuth();
@@ -55,7 +55,18 @@ export default function Plans() {
             empty="No plans"
             columns={[
               { label: 'Plan', render: (p) => <span className="font-medium text-brand-700">{p.planNo}</span> },
-              { label: 'Customer', render: (p) => <span>{p.customer?.name}<span className="block text-xs text-slate-500">{p.customer?.phone}</span></span> },
+              {
+                label: 'Customer',
+                render: (p) => (
+                  <span className="flex items-center gap-3">
+                    <Avatar name={p.customer?.name || '?'} size="sm" />
+                    <span>
+                      <span className="block font-medium text-slate-900">{p.customer?.name}</span>
+                      <span className="block text-xs text-slate-500">{p.customer?.phone}</span>
+                    </span>
+                  </span>
+                ),
+              },
               { label: 'Property', render: (p) => p.property?.title, nowrap: false },
               user.role !== 'agent' && { label: 'Agent', render: (p) => p.agent?.name },
               { label: 'EMI', render: (p) => inr(p.monthlyTarget), right: true },

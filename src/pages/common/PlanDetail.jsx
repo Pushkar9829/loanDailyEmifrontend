@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth';
 import { date, inr, monthLabel, PAY_MODES, PROPERTY_TYPES } from '../../lib/format';
-import { Alert, Badge, Button, Card, ErrorBox, Loading, PageHeader, Progress, Stat, StatusBadge, Table } from '../../components/ui';
+import { CalendarRange, FileText, HandCoins, Landmark, ListChecks, ReceiptText, ScrollText, XCircle } from 'lucide-react';
+import { Alert, Badge, Button, Card, ErrorBox, Loading, PageHeader, Progress, ProgressRing, StatusBadge, Table } from '../../components/ui';
+import SlotTimeline from '../../components/SlotTimeline';
 import { CancelPlanModal, DownPaymentModal, RefundModal } from '../../components/PlanActions';
 import CollectModal from '../../components/CollectModal';
 import InstallmentTable from '../../components/InstallmentTable';
@@ -16,7 +18,7 @@ export default function PlanDetail() {
   const [dialog, setDialog] = useState(null); // 'down' | 'cancel' | 'refund'
   const [listKey, setListKey] = useState(0);
 
-  if (loading && !d) return <Loading />;
+  if (loading && !d) return <Loading page />;
   if (error) return <ErrorBox error={error} />;
   const { plan, month, slots, monthly } = d;
   const isAgent = user.role === 'agent';
@@ -27,22 +29,24 @@ export default function PlanDetail() {
   return (
     <>
       <PageHeader
+        eyebrow={`${plan.planNo} · ${PROPERTY_TYPES[plan.property?.type]}`}
         title={plan.property?.title}
         subtitle={
-          <>
-            {plan.planNo} · {PROPERTY_TYPES[plan.property?.type]} · Agreement {plan.agreementNo} · <StatusBadge status={plan.status} />
-          </>
+          <span className="inline-flex flex-wrap items-center gap-2">
+            Agreement {plan.agreementNo} <StatusBadge status={plan.status} />
+            {plan.financeType === 'partner_loan' && <Badge tone="blue">Loan · {plan.lender?.name}</Badge>}
+          </span>
         }
         actions={
           <>
-            <a className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href={`/plans/${plan._id}/statement`} target="_blank" rel="noreferrer">
-              Statement
+            <a className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50" href={`/plans/${plan._id}/statement`} target="_blank" rel="noreferrer">
+              <FileText className="h-4 w-4" /> Statement
             </a>
-            <a className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href={`/plans/${plan._id}/kfs`} target="_blank" rel="noreferrer">
-              Key Fact Statement
+            <a className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50" href={`/plans/${plan._id}/kfs`} target="_blank" rel="noreferrer">
+              <ScrollText className="h-4 w-4" /> Key Fact Statement
             </a>
             {user.role === 'admin' && plan.status === 'active' && (
-              <Button variant="danger" onClick={() => setDialog('cancel')}>
+              <Button variant="danger" icon={XCircle} onClick={() => setDialog('cancel')}>
                 Cancel plan
               </Button>
             )}
@@ -85,52 +89,48 @@ export default function PlanDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Monthly target (EMI)" value={inr(plan.monthlyTarget)} sub={`${plan.tenureMonths} months${plan.interestRate ? ` @ ${plan.interestRate}%` : ', no interest'}`} />
-        <Stat label="Paid" value={inr(plan.totalPaid)} sub={`${plan.installmentsCount} installment${plan.installmentsCount === 1 ? "" : "s"}`} tone="brand" />
-        <Stat label="Remaining" value={inr(d.remaining)} sub={`of ${inr(plan.totalPayable)}`} />
-        <Stat label="Progress" value={`${plan.progressPercent}%`} sub={plan.milestonesReached.length ? `Milestones: ${plan.milestonesReached.join('%, ')}%` : 'No milestones yet'} />
-      </div>
-      <Progress className="mt-3 h-3" value={plan.progressPercent} />
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card title={`Today's slots (${d.today})`} className="lg:col-span-2">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {slots.map((s) => {
-              const tone = s.paid ? 'border-emerald-300 bg-emerald-50' : s.state === 'open' ? 'border-brand-500 bg-brand-50' : s.state === 'closed' ? 'border-slate-200 bg-slate-50' : 'border-dashed border-slate-300';
-              return (
-                <div key={s.no} className={`rounded-xl border p-3 ${tone}`}>
-                  <div className="text-sm font-semibold">{s.label}</div>
-                  <div className="mt-1 text-xs">
-                    {s.paid ? (
-                      <span className="text-emerald-700">
-                        Paid {inr(s.paid.amount)}
-                        <br />
-                        <span className="text-slate-500">{s.paid.receiptNo}</span>
-                      </span>
-                    ) : s.state === 'open' ? (
-                      <Badge tone="brand">open now</Badge>
-                    ) : s.state === 'before_plan' ? (
-                      <span className="text-slate-400">before plan start</span>
-                    ) : s.state === 'closed' ? (
-                      <span className="text-slate-500">missed</span>
-                    ) : (
-                      <span className="text-slate-400">upcoming</span>
-                    )}
-                  </div>
-                  {isAgent && s.canCollect && (
-                    <Button size="sm" className="mt-2 w-full" onClick={() => setSlot(s)}>
-                      Collect
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-800 to-slate-950 p-5 text-white shadow-lift sm:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-6">
+          <ProgressRing value={plan.progressPercent} size={110} stroke={10}>
+            <span className="tabular text-2xl font-extrabold">{Math.round(plan.progressPercent)}%</span>
+            <span className="text-[10px] uppercase tracking-wider text-brand-100">paid</span>
+          </ProgressRing>
+          <div className="grid w-full grid-cols-2 gap-x-6 gap-y-4 sm:w-auto sm:flex-1 lg:grid-cols-4">
+            {[
+              ['Monthly EMI', inr(plan.monthlyTarget), `${plan.tenureMonths} months${plan.interestRate ? ` @ ${plan.interestRate}%` : ', no interest'}`],
+              ['Paid', inr(plan.totalPaid), `${plan.installmentsCount} installment${plan.installmentsCount === 1 ? '' : 's'}`],
+              ['Remaining', inr(d.remaining), `of ${inr(plan.totalPayable)}`],
+              ['Milestones', plan.milestonesReached.length ? plan.milestonesReached.map((m) => `${m}%`).join(' · ') : '—', 'reached'],
+            ].map(([k, v, sub]) => (
+              <div key={k}>
+                <div className="text-[11px] uppercase tracking-wide text-brand-200">{k}</div>
+                <div className="tabular text-xl font-bold">{v}</div>
+                <div className="text-xs text-brand-100/70">{sub}</div>
+              </div>
+            ))}
           </div>
-          <div className="mt-3 text-xs text-slate-500">Allowed amounts: {plan.denominations.map(inr).join(' · ')}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Card title="Today's slots" subtitle={d.today} icon={CalendarRange} className="lg:col-span-2">
+          <SlotTimeline slots={slots} onSlotClick={setSlot} canClick={(x) => isAgent && x.canCollect} />
+          {isAgent && slots.some((x) => x.canCollect) && (
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+              {slots
+                .filter((x) => x.canCollect)
+                .map((x) => (
+                  <Button key={x.no} icon={HandCoins} variant={x.state === 'open' ? 'primary' : 'secondary'} onClick={() => setSlot(x)}>
+                    Collect · {x.label}
+                  </Button>
+                ))}
+            </div>
+          )}
+          <div className="mt-4 text-xs text-slate-500">Allowed amounts: {plan.denominations.map(inr).join(' · ')}</div>
         </Card>
 
-        <Card title={`${monthLabel(month.monthKey)} status`}>
+        <Card title={monthLabel(month.monthKey)} subtitle="This month vs EMI" icon={ListChecks}>
           <div className="space-y-2 text-sm">
             <Line label="Paid this month" value={inr(month.paid)} />
             <Line label="EMI target" value={inr(month.target)} />
@@ -141,8 +141,8 @@ export default function PlanDetail() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card title="Plan details">
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Card title="Plan details" icon={Landmark}>
           <div className="space-y-2 text-sm">
             <Line label="Customer" value={<span>{plan.customer?.name} ({plan.customer?.code})</span>} />
             {user.role !== 'customer' && <Line label="Phone" value={plan.customer?.phone} />}
@@ -166,7 +166,7 @@ export default function PlanDetail() {
             {plan.immovable && <Line label="Cash paid (cap applies)" value={inr(plan.cashPaid)} />}
           </div>
         </Card>
-        <Card title="Month by month" padded={false} className="lg:col-span-2">
+        <Card title="Month by month" icon={CalendarRange} padded={false} className="lg:col-span-2">
           <Table
             rows={monthly}
             rowKey={(r) => r.monthKey}
@@ -185,7 +185,7 @@ export default function PlanDetail() {
       </div>
 
       <div className="mt-4">
-        <Card title="Installments" padded={false} actions={<Link className="text-sm text-brand-700" to={`/installments?planId=${plan._id}`}>All →</Link>}>
+        <Card title="Installments" icon={ReceiptText} padded={false} actions={<Link className="text-sm text-brand-700" to={`/installments?planId=${plan._id}`}>All →</Link>}>
           <InstallmentTable key={listKey} query={{ planId: plan._id, limit: 10 }} onChanged={reload} hidePlan />
         </Card>
       </div>
